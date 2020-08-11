@@ -60,17 +60,14 @@ app.post('/login',(req,res)=>{
 
         let token=jwt.sign({user:userDB},process.env.SEED,{expiresIn:60*60}); 
 
-        /*res.cookie('access_token',token,{
-            maxAge:3600,
-            httpOnly:true
-        });*/
+       
         const dataUser={
             id:userDB.id,
             email:userDB.email,
             access_token:token,
             expiresIn:'3600'
         }
-        console.log(token);
+        
         res.json({
             dataUser
         })
