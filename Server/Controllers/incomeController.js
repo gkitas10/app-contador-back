@@ -2,11 +2,12 @@ const Income = require('../models/income');
 
 exports.saveIncome = async ( req, res ) => {
     let { body } = req;
-    let { id } = req.user;
+    let { _id } = req.user;
+    
 
     body = {
         ...body,
-        user:id
+        user:_id
     }
 
     let income = new Income( body );
@@ -14,6 +15,10 @@ exports.saveIncome = async ( req, res ) => {
     try {
         const incomeDB = await income.save();
         console.log(incomeDB);
+        res.status(200).json({
+            ok:true,
+            data:incomeDB
+        })
         
     } catch (error) {
         console.log(error)
@@ -26,17 +31,17 @@ exports.saveIncome = async ( req, res ) => {
 
 exports.getIncome = async ( req, res ) => {
     const { month } = req.query;
-    const { id } = req.user;
+    const { _id } = req.user;
 
     try {
         const incomeObjsDB = await Income.find({
             month,
-            user:id
+            user:_id
         })
 
         res.status(200).json({
             ok:true,
-            incomeObjsDB
+            data:incomeObjsDB
         });
 
     } catch (error) {
@@ -44,7 +49,5 @@ exports.getIncome = async ( req, res ) => {
             ok:false,
             error
         })
-    }
-
-    
+    }  
 }
