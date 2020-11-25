@@ -7,5 +7,8 @@ router.post('/save-ticket', verificaToken, ticketController.createTicket );
 router.post('/ticket-items/:user', verificaToken, ticketController.getTicketItems);
 router.post('/tickets-graph/:user', verificaToken, ticketController.getTicketsForGraphics);
 router.get('/get-tickets/:userid', verificaToken, ticketController.getTicketsForTable);
+router.get('/get-products', verificaToken, ticketController.getAccumulatededProductsAmounts);
+router.get('/graphics', verificaToken, ticketController.dataGraphics);
+router.get('/compare-graphics', verificaToken, ticketController.dataGraphics);
 
 module.exports = router;

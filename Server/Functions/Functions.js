@@ -1,8 +1,8 @@
 const Ticket = require('../models/ticket');
 //Construct ticket obj array with totals for get get-tickets/:user req.query.month
-const buildDataArrays=(tickets)=>{
-    const sortedTickets = sortTickets(tickets, 'concept');
-    const accumulatedAmountsArray= accumulatedAmounts( sortedTickets, 'concept' );
+const buildDataArrays = ( tickets, prop )=> {
+    const sortedTickets = sortTickets(tickets, prop);
+    const accumulatedAmountsArray= accumulatedAmounts( sortedTickets, prop );
 
     return accumulatedAmountsArray;
 }
@@ -15,8 +15,6 @@ const buildAmountsArray = async ( body, prop, label ) => {
       ...body,
       date:new RegExp( '^' + month )
     }
-
-    console.log('infuc', body);
 
 //get month-tickets array and labels for graph component
     const dataForGraph =  getSecondArray( body, prop, label );
@@ -32,8 +30,6 @@ if( body.month ) {
       ...body,
       date:new RegExp( '^' + year )
     }
-
-    console.log('infuc', body);
 
     const dataForGraph =  getSecondArrayForMonth( body, prop, label );
 
@@ -153,7 +149,7 @@ const findReq = async ( body, secondArray , res ) => {
         body
     );
 
-    const data = [ ticketsDB, secondArray ]
+    const data = [ ticketsDB, secondArray ];
     
     return res.json({
         ok:true,
@@ -271,6 +267,7 @@ const getSecondArray = async ( body, prop, label ) => {
 module.exports={
   buildDataArrays,
   buildAmountsArray,
-  findReq
-  
+  findReq,
+  getSecondArray,
+  getSecondArrayForMonth
 }
