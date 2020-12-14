@@ -10,5 +10,6 @@ router.get('/get-tickets/:userid', verificaToken, ticketController.getTicketsFor
 router.get('/get-products', verificaToken, ticketController.getAccumulatededProductsAmounts);
 router.get('/graphics', verificaToken, ticketController.dataGraphics);
 router.get('/compare-graphics', verificaToken, ticketController.dataGraphics);
+router.get('/tickets-pie-chart', verificaToken, ticketController.dataForPieChart);
 
 module.exports = router;

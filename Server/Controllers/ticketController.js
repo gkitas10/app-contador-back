@@ -1,8 +1,10 @@
 const Ticket = require('../models/ticket');
+const createError = require('http-errors');
 const { 
     buildDataArrays, buildAmountsArray, findReq,
     getSecondArray,getSecondArrayForMonth
  } = require('../Functions/Functions');
+
 
 exports.createTicket = ( req, res ) => {
     let body = req.body;
@@ -98,7 +100,7 @@ exports.getTicketItems = ( req, res ) => {
     });
 };
 
-exports.getTicketsForGraphics = async ( req, res ) => {
+exports.getTicketsForGraphics = async ( req, res, next ) => {
     //get tickets array and data for graphics and graph front components
     let { body } = req;
     const { user } = req.params;
@@ -116,16 +118,20 @@ exports.getTicketsForGraphics = async ( req, res ) => {
         const dataForGraph = await buildAmountsArray( 
             body,
             'date', 
-            'Todo el gasto durante el mes' 
+            'Todo el gasto durante el mes',
+            res,
+            next
             );
 
-        findReq( body, dataForGraph, res );
+        if(res.headersSent){
+            return;
+        }    
+
+        findReq( body, dataForGraph, res, next );
         return;
     }
    
     if( body.month ) {
-        console.log('bfunc', body)
-
         const month = body.month;
 
         body = {
@@ -136,13 +142,16 @@ exports.getTicketsForGraphics = async ( req, res ) => {
         const dataForGraph = await buildAmountsArray( 
             body,
             'date', 
-            'Todo el gasto durante el año' 
+            'Todo el gasto durante el año',
+            res,
+            next 
             );
 
-        
-        console.log('afunc', body)
-         
-        findReq( body, dataForGraph, res );
+        if(res.headersSent){
+            return;
+        }
+
+        findReq( body, dataForGraph, res, next );
         return;
     }
 
@@ -157,11 +166,16 @@ exports.getTicketsForGraphics = async ( req, res ) => {
         const dataForGraph = await buildAmountsArray( 
             body,
             'date', 
-            'Todo el gasto divido anualmente' 
+            'Todo el gasto divido anualmente',
+            res,
+            next 
             );
+
+        if(res.headersSent){
+            return;
+        }    
          
-        findReq( body, dataForGraph, res );
-        
+        findReq( body, dataForGraph, res, next );
         return; 
     }
 
@@ -175,29 +189,27 @@ exports.getTicketsForTable = ( req, res ) => {
         Ticket.find({
             user:userid,
             date:reg
-          }).exec((err,tickets)=>{
-            if (err) {
+          }).exec((error,tickets)=>{
+            if (error) {
                 return res.status(500).json({
                     ok: false,
-                    err
+                    error
                 });
             }
 
             if( tickets.length === 0 ) {
                 return res.status(400).json({
                     ok: false,
-                    err: {
-                        message: 'No se encontraron tickets'
-                    }
+                    error: 'No se encontraron tickets'
+                    
                 });
             }
             
             const dataArrays=buildDataArrays( tickets, 'concept');
-            
+            console.log(dataArrays)
             res.json({
                 ok:true,
                 dataArrays,
-                
             });
         });
     }
@@ -230,10 +242,8 @@ exports.getTicketsForTable = ( req, res ) => {
         }
     }  
     //For comparative graphics
-    exports.dataGraphics = async (req, res) => {
-       
+    exports.dataGraphics = async (req, res, next) => {
         let query = req.query;
-        console.log('aqui', query)
         const { _id } = req.user;
 
         query = {
@@ -246,7 +256,7 @@ exports.getTicketsForTable = ( req, res ) => {
             delete query.month
         }else{
             const regExp = new RegExp(`^${query.month}`)
-
+//Even though there is query.month, here the function works w dates
             query = {
                 ...query,
                 date:regExp,
@@ -255,7 +265,7 @@ exports.getTicketsForTable = ( req, res ) => {
 
             delete query.month
         }
-
+//Here use getSecondArrayForMonth beacause its gonna work w months
         if( query.year === 'undefined' || query.year === '' ) {
             delete query.year
         }else{
@@ -271,25 +281,100 @@ exports.getTicketsForTable = ( req, res ) => {
         }
         
         if( query.func === 'getSecondArray'){
-            
             delete query.func
-               const data = await getSecondArray(query, 'date', 'Gastos durante el mes');
-               console.log(data)
-              return res.json({
-                   ok:true,
-                   data
-               });
+            try {
+                const data = await getSecondArray(query, 'date', 'Gastos durante el mes', next);
+                if(res.headersSent) return;
+                
+                return res.json({
+                    ok:true,
+                    data
+                });
+
+            } catch (error) {
+                next(error);
+            }
+            
+            
+
+              
         }
 
         if( query.func === 'getSecondArrayForMonth'){
             delete query.func
-               const data = await getSecondArrayForMonth(query, 'date', 'Gastos durante el año');
+               const data = await getSecondArrayForMonth(query, 'date', 'Gastos durante el año', next);
              
                res.json({
                    ok:true,
                    data
                });
         }
+    }
+
+    exports.dataForPieChart =  async (req, res, next) => {
+        
+        let query = req.query;
+        const { _id } = req.user;
+
+        query = {
+            ...query,
+            user:_id
+        }
+        
+        if(query.month !== 'undefined' && query.month !== ''){
+            delete query.year;
+            const regExp = new RegExp(`^${query.month}`)
+            query = {
+                ...query,
+                date:regExp
+            }
+
+            delete query.month;
+        }
+        
+        if(query.year !== 'undefined' && query.year !== undefined) {
+            console.log('executing')
+            delete query.month;
+            const regExp = new RegExp(`^${query.year}`);
+            query = {
+                ...query,
+                date:regExp
+            }
+
+            delete query.year;
+        }
+        console.log('1', query)
+        try {
+            const ticketsDB = await Ticket.find(query);
+
+            if(ticketsDB.length === 0){
+                throw createError(400, 'No se encontraron tickets de gasto para la gráfica')
+            }
+
+            let accConcept = buildDataArrays( ticketsDB, 'concept' );
+            console.log(accConcept)
+            let dataArrays = [[], []]
+
+            accConcept = accConcept.reduce((prev, curr, idx, arr) => {
+                dataArrays[0].push(curr.concept)
+                dataArrays[1].push(curr.amount) 
+                return dataArrays;
+                
+            }, []);
+
+            console.log(accConcept)
+
+            res.json({
+                ok:true,
+                data:accConcept
+            })
+
+
+        } catch (error) {
+            next(error)
+        }
+        
+        
     }
 
 

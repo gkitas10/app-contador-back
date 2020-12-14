@@ -1,4 +1,5 @@
 const Ticket = require('../models/ticket');
+const createError = require('http-errors');
 //Construct ticket obj array with totals for get get-tickets/:user req.query.month
 const buildDataArrays = ( tickets, prop )=> {
     const sortedTickets = sortTickets(tickets, prop);
@@ -7,7 +8,7 @@ const buildDataArrays = ( tickets, prop )=> {
     return accumulatedAmountsArray;
 }
 //Construct amount array for tickets-graph/:user
-const buildAmountsArray = async ( body, prop, label ) => {
+const buildAmountsArray = async ( body, prop, label, res, next ) => {
   //Validate time period
   if( body.date && !body.month && !body.year ) {
     const month = body.date.slice(0,7);
@@ -17,7 +18,7 @@ const buildAmountsArray = async ( body, prop, label ) => {
     }
 
 //get month-tickets array and labels for graph component
-    const dataForGraph =  getSecondArray( body, prop, label );
+    const dataForGraph =  getSecondArray( body, prop, label, next );
 
     return dataForGraph;
   }
@@ -30,9 +31,9 @@ if( body.month ) {
       ...body,
       date:new RegExp( '^' + year )
     }
-
-    const dataForGraph =  getSecondArrayForMonth( body, prop, label );
-
+    
+    const dataForGraph =  getSecondArrayForMonth( body, prop, label, next );
+    
     return dataForGraph;
 }
 
@@ -57,6 +58,10 @@ if( body.year && body.date ) {
     const ticketsDB = await Ticket.find(
       body2
     );
+    
+    if(ticketsDB.length === 0){
+      throw createError(401, 'No se encontraron tickets de gasto para la gráfica')
+  }
 
     const sortedTickets = sortTickets( ticketsDB, 'date' )
      //Slice date prop to get only the year numbers
@@ -85,10 +90,7 @@ if( body.year && body.date ) {
 
 
 } catch (error) {
-    console.log(error)
-    res.status(500).json({
-        error
-    });
+    next(error)
 }
   
 
@@ -143,42 +145,46 @@ const sortTickets = (tickets, prop) => {
   return tickets;
 }
 //Response array sent to graphics front component
-const findReq = async ( body, secondArray , res ) => {
+const findReq = async ( body, secondArray , res, next ) => {
   try {
     const ticketsDB = await Ticket.find(
         body
     );
 
     const data = [ ticketsDB, secondArray ];
-    
+
+    if(data[0].length === 0){
+      throw createError(400, 'No se encontraron tickets de gasto en este período')
+    }
+
     return res.json({
         ok:true,
         data
     });
 
 } catch (error) {
-    console.log(error)
-    res.status(500).json({
-        error
-    });
+    next(error)
 }
 }
 //Request that structures the 2nd array of findReq for graphics front component
 //Takes a prop to sort the tickets and choose the labels from below the graph component
 //Takes the main label or "header" of the graph front component 
-const getSecondArray = async ( body, prop, label ) => {
+const getSecondArray = async ( body, prop, label, next ) => {
   
   try {
     const ticketsDB = await Ticket.find( body );
+
+    if(ticketsDB.length === 0){
+      throw createError(401, 'No se encontraron tickets de gasto para la gráfica')
+  }
     
     const sortedTickets = sortTickets(ticketsDB, prop);
-    
-    
     const accumulatedAmountsArray = accumulatedAmounts( sortedTickets, prop );
     //This new objs have a concept prop with concept labels, dates, months or years
     const labelsArray = accumulatedAmountsArray.map( ticket => (
     ticket.concept
   ));
+
     const amountsArray = accumulatedAmountsArray.map(ticket => (
       ticket.amount
     ));
@@ -192,16 +198,19 @@ const getSecondArray = async ( body, prop, label ) => {
     return dataForGraph;
   
     } catch (error) {
-      console.log('error', error);
+      return next(error)
     }
   }
 //Function used in case body comes with month prop, returns data array for graphics and
 //graph front components
-  const getSecondArrayForMonth = async ( body, prop, label ) => {
+  const getSecondArrayForMonth = async ( body, prop, label, next ) => {
   
     try {
       const ticketsDB = await Ticket.find( body );
-      
+       
+      if(ticketsDB.length === 0){
+        throw createError(401, 'No se encontraron tickets de gasto para la gráfica')
+    }
       const sortedTickets = sortTickets(ticketsDB, prop)
       
       //Slice date prop to get only the month numbers
@@ -257,7 +266,7 @@ const getSecondArray = async ( body, prop, label ) => {
       return dataForGraph;
     
       } catch (error) {
-        console.log('error', error);
+         return next(error)
       }
     }
 

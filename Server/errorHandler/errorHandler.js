@@ -1,6 +1,11 @@
-const errorHandler = (err, req, res, next) => {
-    res.status(err.status).json({
-        message:err.message
+const errorHandler = (error, req, res, next) => {
+    if (res.headersSent) {
+        return next(error)
+    }
+
+    res.status(error.status)
+    res.json({
+        error:error.message
     })
 }
 
