@@ -6,7 +6,7 @@ const {
  } = require('../Functions/Functions');
 
 
-exports.createTicket = ( req, res ) => {
+exports.createTicket = async ( req, res, next ) => {
     let body = req.body;
     console.log(body)
 
@@ -17,30 +17,53 @@ exports.createTicket = ( req, res ) => {
         provider:body.provider,
         notes:body.notes,
         date:body.date,
-        user:req.user._id
+        user:req.user._id,
+        created:new Date()
     });
 
-    ticket.save((err,ticketDB)=>{
+    try {
+        const ticketDB = await ticket.save(); 
+        if(!ticketDB) {
+            throw createError(500, 'No se ha podido guardar el ticket') 
+        }
+        
+            res.json({
+            ok:true,
+            message:'Ticket guardado exitosamente',
+            ticketDB
+        })
+    } catch (error) {
+        next(error)
+    }
 
-        if(err){
-            return res.status(500).json({
-                 ok:false,
-                 err
-             });
-         }
-         if(!ticketDB)return res.status(404).json({ok:false,message:'No se ha podido guardar el ticket'});
- 
-         res.json({
-             ok:true,
-             ticket:ticketDB  
-         });
-    });
+    
+
+    // ticket.save((err,ticketDB)=>{
+
+    //     if(err){
+    //         return res.status(500).json({
+    //              ok:false,
+    //              err
+    //          });
+    //      }
+
+    //      if(!ticketDB) {
+    //          return res.status(404).json({
+    //          ok:false, message:'No se ha podido guardar el ticket'
+    //         });
+    //     }
+
+    //      res.json({
+    //          ok:true,
+    //          ticket:ticketDB  
+    //      });
+    // });
 }
 
 
-exports.getTicketItems = ( req, res ) => {
+exports.getTicketItems = ( req, res, next ) => {
     let {body}=req;
-    console.log(body)
+    console.log('prev', body)
     if(body.concept===''){
         delete body.concept;
     }
@@ -57,6 +80,10 @@ exports.getTicketItems = ( req, res ) => {
         delete body.date;
     }
 
+    if(body.created===''){
+        delete body.created;
+    }
+
     if(body.hasOwnProperty('month')){
         if(body.month===''){
             delete body.month;
@@ -64,6 +91,15 @@ exports.getTicketItems = ( req, res ) => {
             body.date=new RegExp('^'+body.month);
             delete body.month;
         }    
+    }
+    //
+    if(body.created){
+        console.log(body.created)
+        
+        body = {
+            ...body,
+            created:new RegExp('^' + body.created.slice(0, 15))
+        }
     }
     
     const { user } = req.params;
@@ -75,7 +111,7 @@ exports.getTicketItems = ( req, res ) => {
     //Create reg ex to include more tickets w variations
     const reg = new RegExp()
     const { from } = req.query;
-    
+    console.log(body)
     Ticket.find(
         body
     )
@@ -89,6 +125,12 @@ exports.getTicketItems = ( req, res ) => {
             });
         }
 
+        if(ticketsDB.length === 0) {
+            return res.status(400).json({
+                message:'No se encontraron tickets para este período'
+            })
+        }
+
         Ticket.countDocuments(body,(err, count) => {
             console.log(count);
             res.json({
@@ -99,6 +141,29 @@ exports.getTicketItems = ( req, res ) => {
         });
     });
 };
+
+exports.deleteTicket = async ( req, res, next ) => {
+    const { _id } = req.user;
+    const { ticketid } = req.params;
+
+    try {
+        await Ticket.findOneAndRemove({
+            user:_id,
+            _id:ticketid
+        });
+
+        res.json({
+            ok:true,
+            message:'El ticket ha sido eliminado'
+        })
+    } catch (error) {
+        next(error)
+    }
+
+   
+
+
+}
 
 exports.getTicketsForGraphics = async ( req, res, next ) => {
     //get tickets array and data for graphics and graph front components
@@ -293,21 +358,22 @@ exports.getTicketsForTable = ( req, res ) => {
 
             } catch (error) {
                 next(error);
-            }
-            
-            
-
-              
+            }  
         }
 
         if( query.func === 'getSecondArrayForMonth'){
             delete query.func
-               const data = await getSecondArrayForMonth(query, 'date', 'Gastos durante el año', next);
-             
-               res.json({
-                   ok:true,
-                   data
-               });
+            try {
+                const data = await getSecondArrayForMonth(query, 'date', 'Gastos durante el año', next);
+                if(res.headersSent) return;
+
+                res.json({
+                    ok:true,
+                    data
+                });
+            } catch (error) {
+                next(error);
+            }    
         }
     }
 

@@ -5,7 +5,7 @@ const jwt=require('jsonwebtoken');
 
 exports.signUp = ( req, res ) => {
     let body = req.body;
-
+    console.log('body', body)
     let user = new User({
         name:body.name,
         email:body.email,

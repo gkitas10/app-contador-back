@@ -11,5 +11,6 @@ router.get('/get-products', verificaToken, ticketController.getAccumulatededProd
 router.get('/graphics', verificaToken, ticketController.dataGraphics);
 router.get('/compare-graphics', verificaToken, ticketController.dataGraphics);
 router.get('/tickets-pie-chart', verificaToken, ticketController.dataForPieChart);
+router.delete('/delete-ticket/:ticketid', verificaToken, ticketController.deleteTicket);
 
 module.exports = router;

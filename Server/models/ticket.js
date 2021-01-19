@@ -10,7 +10,8 @@ let ticketSchema=new Schema({
     provider:{ type:String, required:[ true, 'El provedor o tienda es obligatorio' ]},
     notes:{ type:String },
     date:{ type:String, required:[ true, 'La fecha es obligatoria' ]},
-    user:{ type:Schema.Types.ObjectId,ref:'User' }  
+    user:{ type:Schema.Types.ObjectId,ref:'User' },
+    created:{ type:String, required:[true, 'La fecha de creación es obligatoria']} 
 });
 
 

@@ -25,7 +25,8 @@ app.use('/', require('./routes/tickets'));
 app.use('/', require('./routes/income'));
 app.use(errorHandler)
 
-mongoose.connect(process.env.URLDB,{useNewUrlParser:true,useUnifiedTopology: true,useCreateIndex:true},(err,res)=>{
+mongoose.connect(process.env.URLDB,{
+    useNewUrlParser:true, useUnifiedTopology: true, useCreateIndex:true, useFindAndModify: false },(err,res)=>{
     if(err) throw err;
     console.log('conexión exitosa con la DB');
 });

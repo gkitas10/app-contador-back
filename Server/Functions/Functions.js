@@ -1,7 +1,7 @@
 const Ticket = require('../models/ticket');
 const createError = require('http-errors');
 //Construct ticket obj array with totals for get get-tickets/:user req.query.month
-const buildDataArrays = ( tickets, prop )=> {
+const buildDataArrays = ( tickets, prop ) => {
     const sortedTickets = sortTickets(tickets, prop);
     const accumulatedAmountsArray= accumulatedAmounts( sortedTickets, prop );
 

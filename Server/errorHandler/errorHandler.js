@@ -3,6 +3,7 @@ const errorHandler = (error, req, res, next) => {
         return next(error)
     }
 
+    console.log(error);
     res.status(error.status)
     res.json({
         error:error.message
