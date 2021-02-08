@@ -2,6 +2,8 @@ const express=require('express');
 const bcrypt=require('bcrypt');
 const User=require('../models/user');
 const jwt=require('jsonwebtoken');
+var admin = require('firebase-admin');
+const { findOne } = require('../models/user');
 
 exports.signUp = ( req, res ) => {
     let body = req.body;
@@ -55,13 +57,13 @@ exports.logIn = ( req, res ) => {
             });
         }
 
-        let token=jwt.sign({user:userDB},process.env.SEED,{expiresIn:60*60}); 
+        let token=jwt.sign({user:userDB},process.env.SEED,{expiresIn:+process.env.CADUCIDAD_TOKEN}); 
 
         const dataUser={
             id:userDB.id,
             email:userDB.email,
             access_token:token,
-            expiresIn:'3600'
+            expiresIn:process.env.CADUCIDAD_TOKEN
         }
         
         res.json({
@@ -69,3 +71,79 @@ exports.logIn = ( req, res ) => {
         })
     });
 };
+
+exports.googleSignIn = async (req, res, next) => {
+    const { idToken, FireUser } = req.body;
+    try {
+        await admin.auth().verifyIdToken(idToken, true)
+        const userDB = await User.findOne({
+            email:FireUser.email
+        })
+
+        if(userDB) {
+            if (userDB.google === false) {
+                throw createError(401, 'Inicia sesión con tu cuenta de correo y password')
+            } else {
+                const token = jwt.sign({
+                    user: userDB
+                    //turn global var CADUCIDAD_TOKEN into number again because global variables turn into strings
+                }, process.env.SEED, {expiresIn:+process.env.CADUCIDAD_TOKEN});
+
+                const dataUser={
+                    id:userDB.id,
+                    email:userDB.email,
+                    access_token:token,
+                    expiresIn:process.env.CADUCIDAD_TOKEN
+                }
+
+                return res.json({
+                    dataUser
+                });
+            }
+        }else {
+           // Si el usuario no existe en nuestra base de datos
+            let user = new User();
+
+            user.name = FireUser.displayName;
+            user.email = FireUser.email;
+            user.password = ':)';
+            user.img = FireUser.photoURL;
+            user.google = true;
+        
+            try {
+                const userDB = await user.save()
+                if(!userDB) {
+                    throw createError(404, 'No se ha podido crear el usuario')
+                }
+
+                let token = jwt.sign({
+                    user: userDB
+                }, process.env.SEED, {expiresIn:+process.env.CADUCIDAD_TOKEN});
+
+                const dataUser = {
+                    id:userDB.id,
+                    email:userDB.email,
+                    access_token:token,
+                    expiresIn:process.env.CADUCIDAD_TOKEN
+                }
+
+                res.json({
+                    dataUser
+                });
+
+            } catch (error) {
+                next(error)
+            }
+        }
+
+    } catch (error) {
+        if (error.code == 'auth/id-token-revoked') {
+            // Token has been revoked. Inform the user to reauthenticate or signOut() the user.
+            next(error)
+            
+          } else {
+            // Token is invalid.
+            next(error)
+          }
+    }
+}

@@ -50,14 +50,16 @@ exports.getIncome = runAsyncWrapper( async ( req, res ) => {
     })  
 
 exports.deleteIncome = async (req, res) => {
-    const { _id } = req.user;
+  //  const { _id } = req.user;
     const { id } = req.params;
 
     try {
         const incomeDB = await Income.findOneAndRemove({
-            user:_id,
+         //   user:_id,
             _id:id
         })
+
+        console.log(incomeDB)
     
         res.json({
             msg:'El item de ingreso ha sido eliminado',
